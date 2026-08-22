@@ -167,6 +167,13 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/knowledge_points")
+def knowledge_points() -> dict:
+    """返回知识点清单 {单元标题: [考点列表]}，供前端级联选择。"""
+    with open(os.path.join(BASE_DIR, "data", "knowledge_points.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
     with open(os.path.join(BASE_DIR, "index.html"), encoding="utf-8") as f:

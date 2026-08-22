@@ -76,3 +76,9 @@ class PaperResponse(BaseModel):
     """出卷结果。"""
 
     questions: List[Question] = Field(description="整卷题目列表")
+
+
+class KnowledgePointAnnotations(BaseModel):
+    """一批题目的考点标注结果（按输入顺序一一对应，值须来自候选清单）。"""
+
+    knowledge_points: List[str] = Field(description="按输入顺序返回每题考点")

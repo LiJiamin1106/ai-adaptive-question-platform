@@ -83,10 +83,10 @@ def _docs():
             }})
     for e in examples:
         opts = "\n".join(f"{c}. {o}" for c, o in zip("ABCDE", e["options"]))
-        # 把考点/题型拼进文本，让 BM25 关键词检索能按主题命中（如 "Inheritance"）
         # embed/rerank 只取 stem 前 500 字符（超长 stem 会让 onnxruntime CPU 推理异常慢，~1s/条）；
         # payload 里的 stem 仍保留完整，供 few-shot 展示用。
-        text = f"{e['knowledge_point']} {e['type']}\n{e['stem'][:500]}\n{opts}"
+        # 注意：text 不再拼 knowledge_point 标签（避免标签污染向量，考点靠 payload + filter 硬过滤）。
+        text = f"{e['stem'][:500]}\n{opts}"
         docs.append({"qid": _qid(e["stem"]), "text": text, "payload": {
             "kind": "example", "text": text,
             "knowledge_point": e["knowledge_point"], "type": e["type"],
@@ -131,7 +131,7 @@ def build_index(force: bool = False):
 def _question_doc(q: dict) -> dict:
     """把一道题（dict）转成 (qid, text, payload) 文档，与 _docs 的 example 结构一致。"""
     opts = "\n".join(f"{c}. {o}" for c, o in zip("ABCDE", q.get("options", [])))
-    text = f"{q['knowledge_point']} {q['type']}\n{q['stem'][:500]}\n{opts}"
+    text = f"{q['stem'][:500]}\n{opts}"
     return {
         "qid": _qid(q["stem"]),
         "text": text,
@@ -195,21 +195,25 @@ def reset_user() -> None:
         )
 
 
-def _hybrid_search(query_text: str, limit: int = 15) -> list[dict]:
+def _hybrid_search(query_text: str, limit: int = 15, kp_filter: str | None = None) -> list[dict]:
     dense, sparse, _ = _models()
     client = _get_client()
     qd = list(dense.embed([query_text]))[0]
     qs = list(sparse.embed([query_text]))[0]
+    query_filter = None
+    if kp_filter:
+        query_filter = models.Filter(must=[models.FieldCondition(key="knowledge_point", match=models.MatchValue(value=kp_filter))])
     res = client.query_points(
         collection_name=COLLECTION,
         prefetch=[
-            models.Prefetch(query=qd.tolist(), using="dense", limit=limit),
+            models.Prefetch(query=qd.tolist(), using="dense", limit=limit, filter=query_filter),
             models.Prefetch(
                 query=models.SparseVector(indices=qs.indices.tolist(), values=qs.values.tolist()),
-                using="bm25", limit=limit,
+                using="bm25", limit=limit, filter=query_filter,
             ),
         ],
         query=models.FusionQuery(fusion=models.Fusion.RRF),
+        query_filter=query_filter,
         limit=limit,
         with_payload=True,
     )
@@ -221,7 +225,8 @@ def retrieve(request: GenerateRequest, top_k: int = 3) -> dict:
     if not _get_client().collection_exists(COLLECTION):
         build_index()
     query_text = f"{request.knowledge_point} {request.question_type} {request.difficulty}"
-    candidates = _hybrid_search(query_text, limit=30)
+    # 按考点硬过滤（考点是细粒度标签，dense 分不清代码细节，靠 filter 保证考点精准）
+    candidates = _hybrid_search(query_text, limit=30, kp_filter=request.knowledge_point)
     if not candidates:
         return {"examples": [], "syllabus": []}
     _, _, rerank = _models()

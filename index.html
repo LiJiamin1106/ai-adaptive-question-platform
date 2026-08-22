@@ -40,14 +40,8 @@
 
   <div class="card">
     <div class="form">
-      <div class="field"><label>考点</label>
-        <select id="kp">
-          <option>Array</option><option>ArrayList</option><option>2D Array</option>
-          <option>Inheritance</option><option>Recursion</option><option>Writing Classes</option>
-          <option>Iteration</option><option>Boolean Expressions and if Statements</option>
-          <option>Using Objects</option><option>Primitive Types</option>
-        </select>
-      </div>
+      <div class="field"><label>单元</label><select id="unit" class="unit-select"></select></div>
+      <div class="field"><label>考点</label><select id="kp"></select></div>
       <div class="field"><label>题型</label>
         <select id="type"><option value="选择题">选择题</option><option value="编程题">编程题</option></select>
       </div>
@@ -63,7 +57,8 @@
     <h2 style="margin:0 0 4px;font-size:16px">单元型练习</h2>
     <div class="sub" style="margin-bottom:12px">单一知识点，选择题 + 编程题（数量可为 0）</div>
     <div class="form">
-      <div class="field"><label>知识点</label><select id="u-kp"></select></div>
+      <div class="field"><label>单元</label><select id="u-unit" class="unit-select"></select></div>
+      <div class="field"><label>考点</label><select id="u-kp"></select></div>
       <div class="field"><label>选择题数量</label><input type="number" id="u-mcq" value="5" min="0" max="20" style="width:70px"></div>
       <div class="field"><label>编程题数量</label><input type="number" id="u-frq" value="1" min="0" max="20" style="width:70px"></div>
       <div class="field"><label>难度</label><select id="u-diff"></select></div>
@@ -153,12 +148,26 @@ async function gen(){
 }
 document.getElementById('gen').addEventListener('click', gen);
 
-// —— 出卷 ——
-const KPS = ['Primitive Types','Using Objects','Boolean Expressions and if Statements','Iteration','Writing Classes','Array','ArrayList','2D Array','Inheritance','Recursion'];
+// —— 知识点级联（单元 → 考点）——
+let KP_MAP = {};
 const DIFFS = ['基础','中等','较难'];
 function fillSelect(sel, items){ sel.innerHTML = items.map(x=>`<option>${x}</option>`).join(''); }
-fillSelect(document.getElementById('u-kp'), KPS);
-fillSelect(document.getElementById('u-diff'), DIFFS);
+function kpUnitOptions(){ return Object.keys(KP_MAP).map(u=>`<option>${u}</option>`).join(''); }
+function fillKps(kpSel, unit){ fillSelect(kpSel, KP_MAP[unit] || []); }
+function bindCascade(unitSel, kpSel){
+  unitSel.addEventListener('change', ()=>fillKps(kpSel, unitSel.value));
+  fillKps(kpSel, unitSel.value);
+}
+async function loadKP(){
+  const r = await fetch('/knowledge_points');
+  KP_MAP = await r.json();
+  document.querySelectorAll('.unit-select').forEach(u=>u.innerHTML=kpUnitOptions());
+  bindCascade(document.getElementById('unit'), document.getElementById('kp'));
+  bindCascade(document.getElementById('u-unit'), document.getElementById('u-kp'));
+  fillSelect(document.getElementById('u-diff'), DIFFS);
+  addSpecRow();  // 初始一行（在 KP_MAP 加载后）
+}
+loadKP();
 
 async function assemble(specs, btnId, spinId){
   const btn=document.getElementById(btnId), spin=document.getElementById(spinId), res=document.getElementById('result');
@@ -193,15 +202,18 @@ function addSpecRow(){
   row.className='form';
   row.style.marginBottom='10px';
   row.innerHTML=`
-    <div class="field"><label>知识点</label><select class="c-kp">${KPS.map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <div class="field"><label>单元</label><select class="c-unit unit-select">${kpUnitOptions()}</select></div>
+    <div class="field"><label>考点</label><select class="c-kp"></select></div>
     <div class="field"><label>题型</label><select class="c-type"><option>选择题</option><option>编程题</option></select></div>
     <div class="field"><label>数量</label><input type="number" class="c-count" value="3" min="1" max="20" style="width:60px"></div>
     <div class="field"><label>难度</label><select class="c-diff">${DIFFS.map(x=>`<option>${x}</option>`).join('')}</select></div>
     <button type="button" class="copy" onclick="this.closest('.form').remove()">移除</button>`;
+  const unitSel = row.querySelector('.c-unit'), kpSel = row.querySelector('.c-kp');
+  unitSel.addEventListener('change', ()=>fillKps(kpSel, unitSel.value));
+  fillKps(kpSel, unitSel.value);
   document.getElementById('spec-list').appendChild(row);
 }
 document.getElementById('add-spec').addEventListener('click', addSpecRow);
-addSpecRow();
 
 async function genCombo(){
   const rows=document.querySelectorAll('#spec-list .form');

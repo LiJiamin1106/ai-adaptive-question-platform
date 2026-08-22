@@ -14,7 +14,7 @@ import os
 from dotenv import load_dotenv
 from langchain_deepseek import ChatDeepSeek
 
-from schemas import DifficultyAnnotations, GenerateResponse, ParsedQuestions
+from schemas import DifficultyAnnotations, GenerateResponse, KnowledgePointAnnotations, ParsedQuestions
 
 load_dotenv()
 
@@ -131,3 +131,33 @@ def parse_questions(text: str, max_retries: int = 2) -> list:
         except Exception as e:
             last_err = e
     raise RuntimeError(f"文档解析失败（重试 {max_retries} 次后仍失败）: {last_err}")
+
+
+_kp_annotation_llm = _llm.with_structured_output(KnowledgePointAnnotations)
+
+
+def annotate_knowledge_point(batch: list[dict], candidates: list[str], max_retries: int = 2) -> list[str]:
+    """批量标注考点。batch: [{stem, options}, ...] → 从 candidates 里为每题选一个考点，返回按顺序对应的考点列表。"""
+    cand_str = "、".join(candidates)
+    lines = []
+    for i, q in enumerate(batch, 1):
+        opts = "\n".join(f"{c}. {o}" for c, o in zip("ABCDE", q.get("options", [])))
+        body = q["stem"] + (f"\n{opts}" if opts else "")
+        lines.append(f"[{i}]\n{body}")
+    user = f"候选考点（必须从中选，不要自造）：{cand_str}\n\n" + "\n\n".join(lines)
+    messages = [
+        {"role": "system", "content": "你是 AP CSA 考点标注助手。为每道题从候选考点里选最贴切的一个，"
+                                      "只返回 knowledge_points 数组，长度与题目数一致，值必须严格等于候选之一。"},
+        {"role": "user", "content": user},
+    ]
+    last_err = None
+    for _ in range(max_retries + 1):
+        try:
+            resp = _kp_annotation_llm.invoke(messages)
+            if resp is not None and len(resp.knowledge_points) == len(batch):
+                # 归一化：模型返回候选之外的值时回退到第一个候选，避免脏数据
+                return [kp if kp in candidates else candidates[0] for kp in resp.knowledge_points]
+            last_err = "模型未返回工具调用或数量不匹配"
+        except Exception as e:
+            last_err = e
+    raise RuntimeError(f"考点标注失败（重试 {max_retries} 次后仍失败）: {last_err}")
