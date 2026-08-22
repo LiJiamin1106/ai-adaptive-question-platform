@@ -117,7 +117,7 @@
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmt = s => esc(s).replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => `<pre><code>${code}</code></pre>`);
 
-function cardHTML(q, idx){
+function cardHTML(q, idx, withBasket=true){
   const opts = (q.options && q.options.length)
     ? `<div class="label">选项</div><div>${q.options.map((o,j)=>`<div class="opt"><b>${'ABCDE'[j]}.</b> ${fmt(o)}</div>`).join('')}</div>` : '';
   const mps = (q.marking_points && q.marking_points.length)
@@ -130,7 +130,7 @@ function cardHTML(q, idx){
     <div class="label">分步解析</div><div class="explain">${fmt(q.explanation)}</div>
     ${mps}
     <div style="margin-top:8px">
-      <button class="copy" onclick="addToBasket(${idx})">加入篮子</button>
+      ${withBasket ? `<button class="copy" onclick="addToBasket(${idx})">加入篮子</button>` : ''}
       <button class="copy" onclick="copyMd(this)">复制 Markdown</button>
     </div>
   </div>`;
@@ -192,7 +192,7 @@ async function assemble(specs, btnId, spinId){
     if(!r.ok) throw new Error(await r.text());
     const data=await r.json();
     lastQuestions = data.questions;
-    res.innerHTML=`<div class="sub" style="margin:12px 0 4px">共生成 ${data.questions.length} 题</div>`+data.questions.map((q, i)=>cardHTML(q, i)).join('');
+    res.innerHTML=`<div style="margin:12px 0 4px;display:flex;align-items:center;gap:10px"><span class="sub" style="margin:0">共生成 ${data.questions.length} 题</span><button class="copy" onclick="exportQuestions(lastQuestions)">导出 Word</button></div>`+data.questions.map((q, i)=>cardHTML(q, i, false)).join('');
   }catch(e){
     res.innerHTML=`<div class="card err">${esc(String(e))}</div>`;
   }finally{
@@ -348,19 +348,23 @@ document.getElementById('basket-clear').addEventListener('click', ()=>{
   renderBasket();
 });
 
-async function exportBasket(){
-  if(!basket.length){ alert('篮子为空，先攒几道题'); return; }
+async function exportQuestions(questions, filename='paper.docx'){
+  if(!questions || !questions.length){ alert('没有可导出的题'); return; }
   try{
-    const r = await fetch('/export', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({questions: basket})});
+    const r = await fetch('/export', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({questions})});
     if(!r.ok) throw new Error(await r.text());
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'paper.docx';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }catch(e){ alert(String(e)); }
+}
+function exportBasket(){
+  if(!basket.length){ alert('篮子为空，先攒几道题'); return; }
+  exportQuestions(basket);
 }
 document.getElementById('basket-export').addEventListener('click', exportBasket);
 renderBasket();
