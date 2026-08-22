@@ -22,8 +22,8 @@ class Question(BaseModel):
     knowledge_point: str = Field(description="考点，如 Inheritance / ArrayLists")
     type: QuestionType = Field(description="题型")
     difficulty: Difficulty = Field(description="难度")
-    stem: str = Field(description="题干，可含 Java 代码")
-    options: List[str] = Field(default_factory=list, description="选择题选项；编程题留空")
+    stem: str = Field(description="题干，可含 Java 代码（不含选项文本，选项单独放 options）")
+    options: List[str] = Field(default_factory=list, description="选择题选项（只填内容，不含 A./B. 字母前缀）；编程题留空")
     answer: str = Field(description="标准答案（选择题为选项字母，编程题为代码/要点）")
     explanation: str = Field(description="分步解析，可含 Java 代码")
     marking_points: List[str] = Field(default_factory=list, description="评分要点 / 答案要点")
@@ -55,3 +55,24 @@ class ParsedQuestions(BaseModel):
     """从文档解析出的一组题目（含 LLM 补全的答案/解析/知识点/难度）。"""
 
     questions: List[Question] = Field(description="解析出的题目列表")
+
+
+class PaperSpec(BaseModel):
+    """出卷规格：某知识点某题型出几道（count 可为 0 表示不出）。"""
+
+    knowledge_point: str = Field(description="考点")
+    question_type: QuestionType = Field(description="题型")
+    count: int = Field(default=1, ge=0, le=20, description="该题型出几道（0 表示不出）")
+    difficulty: Difficulty = Field(description="难度")
+
+
+class PaperRequest(BaseModel):
+    """出卷请求：一组规格（单元型 = 单一知识点多题型；综合型 = 多知识点自由组合）。"""
+
+    specs: List[PaperSpec] = Field(description="出题规格列表")
+
+
+class PaperResponse(BaseModel):
+    """出卷结果。"""
+
+    questions: List[Question] = Field(description="整卷题目列表")

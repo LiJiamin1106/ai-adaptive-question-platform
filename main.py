@@ -23,9 +23,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 import rag
-from graph import generate
+from graph import generate, generate_paper
 from llm import parse_questions
-from schemas import GenerateRequest, GenerateResponse
+from schemas import GenerateRequest, GenerateResponse, PaperRequest, PaperResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 QUESTIONS_PATH = os.path.join(BASE_DIR, "data", "questions.json")
@@ -89,6 +89,12 @@ def _save_questions(questions: list[dict]) -> None:
 def generate_questions(req: GenerateRequest) -> GenerateResponse:
     """生成题目：RAG 检索 + LLM 生成 + 护栏校验（含自动重试）。"""
     return generate(req)
+
+
+@app.post("/assemble_paper", response_model=PaperResponse)
+def assemble_paper(req: PaperRequest) -> PaperResponse:
+    """出卷：单元型（单一知识点多题型）或综合型（多知识点自由组合）。"""
+    return generate_paper(req)
 
 
 @app.post("/upload")

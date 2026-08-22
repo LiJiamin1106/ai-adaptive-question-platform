@@ -15,7 +15,7 @@
   .form { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
   .field { display:flex; flex-direction:column; gap:6px; }
   label { font-size:13px; color:var(--muted); }
-  select, button { font-size:15px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+  select, button, input { font-size:15px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; }
   button { background:var(--accent); color:#fff; border:none; cursor:pointer; font-weight:600; }
   button:disabled { opacity:.5; cursor:default; }
   .q { border-top:1px solid var(--border); padding-top:16px; margin-top:16px; }
@@ -56,6 +56,30 @@
       </div>
       <button id="gen">生成题目</button>
       <span id="spin" style="display:none">生成中…</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 4px;font-size:16px">单元型练习</h2>
+    <div class="sub" style="margin-bottom:12px">单一知识点，选择题 + 编程题（数量可为 0）</div>
+    <div class="form">
+      <div class="field"><label>知识点</label><select id="u-kp"></select></div>
+      <div class="field"><label>选择题数量</label><input type="number" id="u-mcq" value="5" min="0" max="20" style="width:70px"></div>
+      <div class="field"><label>编程题数量</label><input type="number" id="u-frq" value="1" min="0" max="20" style="width:70px"></div>
+      <div class="field"><label>难度</label><select id="u-diff"></select></div>
+      <button id="u-gen">生成练习</button>
+      <span id="u-spin" style="display:none;color:#6b7280;font-size:14px">生成中…</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 4px;font-size:16px">综合型试卷</h2>
+    <div class="sub" style="margin-bottom:12px">多知识点自由组合</div>
+    <div id="spec-list"></div>
+    <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button id="add-spec" style="background:#fff;color:#2563eb;border:1px solid #2563eb">+ 添加知识点</button>
+      <button id="c-gen">生成试卷</button>
+      <span id="c-spin" style="display:none;color:#6b7280;font-size:14px">生成中…</span>
     </div>
   </div>
 
@@ -128,6 +152,70 @@ async function gen(){
   }
 }
 document.getElementById('gen').addEventListener('click', gen);
+
+// —— 出卷 ——
+const KPS = ['Primitive Types','Using Objects','Boolean Expressions and if Statements','Iteration','Writing Classes','Array','ArrayList','2D Array','Inheritance','Recursion'];
+const DIFFS = ['基础','中等','较难'];
+function fillSelect(sel, items){ sel.innerHTML = items.map(x=>`<option>${x}</option>`).join(''); }
+fillSelect(document.getElementById('u-kp'), KPS);
+fillSelect(document.getElementById('u-diff'), DIFFS);
+
+async function assemble(specs, btnId, spinId){
+  const btn=document.getElementById(btnId), spin=document.getElementById(spinId), res=document.getElementById('result');
+  btn.disabled=true; spin.style.display='inline'; res.innerHTML='';
+  try{
+    const r=await fetch('/assemble_paper',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({specs})});
+    if(!r.ok) throw new Error(await r.text());
+    const data=await r.json();
+    res.innerHTML=`<div class="sub" style="margin:12px 0 4px">共生成 ${data.questions.length} 题</div>`+data.questions.map(cardHTML).join('');
+  }catch(e){
+    res.innerHTML=`<div class="card err">${esc(String(e))}</div>`;
+  }finally{
+    btn.disabled=false; spin.style.display='none';
+  }
+}
+
+async function genUnit(){
+  const kp=document.getElementById('u-kp').value;
+  const mcq=parseInt(document.getElementById('u-mcq').value)||0;
+  const frq=parseInt(document.getElementById('u-frq').value)||0;
+  const diff=document.getElementById('u-diff').value;
+  if(mcq<=0 && frq<=0){ alert('选择题和编程题数量不能都为 0'); return; }
+  const specs=[];
+  if(mcq>0) specs.push({knowledge_point:kp, question_type:'选择题', count:mcq, difficulty:diff});
+  if(frq>0) specs.push({knowledge_point:kp, question_type:'编程题', count:frq, difficulty:diff});
+  await assemble(specs, 'u-gen', 'u-spin');
+}
+document.getElementById('u-gen').addEventListener('click', genUnit);
+
+function addSpecRow(){
+  const row=document.createElement('div');
+  row.className='form';
+  row.style.marginBottom='10px';
+  row.innerHTML=`
+    <div class="field"><label>知识点</label><select class="c-kp">${KPS.map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <div class="field"><label>题型</label><select class="c-type"><option>选择题</option><option>编程题</option></select></div>
+    <div class="field"><label>数量</label><input type="number" class="c-count" value="3" min="1" max="20" style="width:60px"></div>
+    <div class="field"><label>难度</label><select class="c-diff">${DIFFS.map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <button type="button" class="copy" onclick="this.closest('.form').remove()">移除</button>`;
+  document.getElementById('spec-list').appendChild(row);
+}
+document.getElementById('add-spec').addEventListener('click', addSpecRow);
+addSpecRow();
+
+async function genCombo(){
+  const rows=document.querySelectorAll('#spec-list .form');
+  const specs=[];
+  rows.forEach(r=>specs.push({
+    knowledge_point:r.querySelector('.c-kp').value,
+    question_type:r.querySelector('.c-type').value,
+    count:parseInt(r.querySelector('.c-count').value)||0,
+    difficulty:r.querySelector('.c-diff').value,
+  }));
+  if(!specs.length){ alert('请先添加至少一个知识点'); return; }
+  await assemble(specs, 'c-gen', 'c-spin');
+}
+document.getElementById('c-gen').addEventListener('click', genCombo);
 
 // —— 上传资料 ——
 async function doUpload(){
