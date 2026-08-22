@@ -1,0 +1,86 @@
+[
+  {
+    "unit": 6,
+    "knowledge_point": "Array",
+    "type": "选择题",
+    "difficulty": "中等",
+    "stem": "Consider the following method.\npublic static void changeIt(int[] arr, int index, int newValue)\n{\n  arr[index] += newValue;\n}\nWhich of the following code segments will cause the array myArray to contain {0, 5, 0, 0}?",
+    "options": [
+      "int[] myArray = new int[4];\nchangeIt(myArray, 1, 5);",
+      "int[] myArray = new int[4];\nchangeIt(myArray, 2, 5);",
+      "int[] myArray = new int[4];\nchangeIt(myArray, 5, 1);",
+      "int[] myArray = new int[5];\nchangeIt(myArray, 1, 4);",
+      "int[] myArray = new int[5];\nchangeIt(myArray, 1, 5);"
+    ]
+  },
+  {
+    "unit": 6,
+    "knowledge_point": "Array",
+    "type": "选择题",
+    "difficulty": "中等",
+    "stem": "The method countTarget is intended to return the number of times the value target appears in the array arr. The method may not work as intended.\npublic int countTarget(int[] arr, int target)\n{\n  int count = 0;\n  for (int j = 0; j <= arr.length; j++)  // line 4\n  {\n    if (arr[j] == target) { count++; }\n  }\n  return count;\n}\nWhich change to line 4 makes the method work as intended?",
+    "options": [
+      "Change int j = 0; to int j = 1;",
+      "Change j <= arr.length; to j < arr.length;",
+      "Change j <= arr.length; to j < arr.length - 1;",
+      "Change j <= arr.length; to j < arr.length + 1;",
+      "No change is necessary; the method works correctly as is."
+    ]
+  },
+  {
+    "unit": 6,
+    "knowledge_point": "Array",
+    "type": "选择题",
+    "difficulty": "较难",
+    "stem": "The method reverse is intended to return an array containing the elements of arr in reverse order, leaving arr unchanged.\npublic static int[] reverse(int[] arr)\n{\n  int[] newArr = new int[arr.length];\n  for (int k = 0; k < arr.length; k++)\n  {\n    /* missing statement */\n  }\n  return newArr;\n}\nWhich statement can replace /* missing statement */ so the method works as intended?",
+    "options": [
+      "newArr[k] = arr[-k];",
+      "newArr[k] = arr[k - arr.length];",
+      "newArr[k] = arr[k - arr.length - 1];",
+      "newArr[k] = arr[arr.length - k];",
+      "newArr[k] = arr[arr.length - k - 1];"
+    ]
+  },
+  {
+    "unit": 7,
+    "knowledge_point": "ArrayList",
+    "type": "选择题",
+    "difficulty": "中等",
+    "stem": "Consider the following code segment.\nArrayList<String> animals = new ArrayList<>();\nanimals.add(\"fox\");\nanimals.add(0, \"squirrel\");\nanimals.add(\"deer\");\nanimals.set(2, \"groundhog\");\nanimals.add(1, \"mouse\");\nSystem.out.println(animals.get(2) + \" and \" + animals.get(3));\nWhat is printed as a result of executing the code segment?",
+    "options": [
+      "mouse and fox",
+      "fox and groundhog",
+      "groundhog and deer",
+      "fox and deer",
+      "squirrel and groundhog"
+    ]
+  },
+  {
+    "unit": 7,
+    "knowledge_point": "ArrayList",
+    "type": "选择题",
+    "difficulty": "中等",
+    "stem": "Consider the following code segment.\nArrayList<Integer> oldList = new ArrayList();\noldList.add(100); oldList.add(200); oldList.add(300); oldList.add(400);\nArrayList<Integer> newList = new ArrayList();\nnewList.add(oldList.remove(1));\nnewList.add(oldList.get(2));\nSystem.out.println(newList);\nWhat is printed as a result of executing the code segment?",
+    "options": [
+      "[100, 300, 400]",
+      "[200, 300]",
+      "[200, 400]",
+      "Nothing is printed because the code segment does not compile.",
+      "Nothing is printed because an IndexOutOfBoundsException will occur."
+    ]
+  },
+  {
+    "unit": 7,
+    "knowledge_point": "ArrayList",
+    "type": "选择题",
+    "difficulty": "基础",
+    "stem": "Consider the following statement, which is intended to create an ArrayList named theater_club to store elements of type Student.\nArrayList<Student> theater_club = new /* missing code */;\nWhich choice can replace /* missing code */ so the statement compiles without error?",
+    "options": [
+      "Student()",
+      "Student ArrayList()",
+      "ArrayList(Student)",
+      "ArrayList<Student>()",
+      "ArrayList<theater_club>()"
+    ]
+  }
+]

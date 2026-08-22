@@ -1,0 +1,12 @@
+[
+  {"unit": 1, "unit_name": "Primitive Types", "topics": ["Variables and Data Types", "Expressions and Assignment Statements", "Compound Assignment Operators", "Casting and Range of Variables"]},
+  {"unit": 2, "unit_name": "Using Objects", "topics": ["Calling a Method", "String Class", "Math Class"]},
+  {"unit": 3, "unit_name": "Boolean Expressions and if Statements", "topics": ["Boolean Expressions", "if-else", "if-else-if", "Compound Boolean Expressions", "Equivalent Boolean Expressions", "Comparing Objects"]},
+  {"unit": 4, "unit_name": "Iteration", "topics": ["While Loop", "For Loop", "Nested Loop"]},
+  {"unit": 5, "unit_name": "Writing Classes", "topics": ["Anatomy of a Class", "Constructors and Creating Objects", "Accessor Methods", "Mutator Methods", "Static Variables and Methods", "this Keyword"]},
+  {"unit": 6, "unit_name": "Array", "topics": ["Array", "Traversing Arrays", "Developing Algorithms Using Arrays"]},
+  {"unit": 7, "unit_name": "ArrayList", "topics": ["ArrayLists", "ArrayList Methods", "Traversing ArrayLists", "Developing Algorithms using ArrayLists", "Searching", "Sorting"]},
+  {"unit": 8, "unit_name": "2D Array", "topics": ["2D Array", "Traversing 2D Arrays"]},
+  {"unit": 9, "unit_name": "Inheritance", "topics": ["Inheritance", "Writing Constructors for Subclasses", "Overriding Methods", "super Keyword", "Creating References Using Inheritance Hierarchies", "Polymorphism", "Object Superclass"]},
+  {"unit": 10, "unit_name": "Recursion", "topics": ["Recursion", "Recursive Searching", "Recursive Sorting"]}
+]

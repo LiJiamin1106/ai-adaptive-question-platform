@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# 敏感信息
+.env
+
+# 本地索引与数据（可重建，不入版本库）
+qdrant_data/
+
+# 系统文件
+.DS_Store
+Thumbs.db

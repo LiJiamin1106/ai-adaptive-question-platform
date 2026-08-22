@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AP CSA 出题助手</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --border:#e2e5ea; --text:#1a1d21; --muted:#6b7280; --accent:#2563eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width: 900px; margin:0 auto; padding:24px 16px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin-bottom:20px; font-size:14px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:20px; }
+  .form { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  label { font-size:13px; color:var(--muted); }
+  select, button { font-size:15px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+  button { background:var(--accent); color:#fff; border:none; cursor:pointer; font-weight:600; }
+  button:disabled { opacity:.5; cursor:default; }
+  .q { border-top:1px solid var(--border); padding-top:16px; margin-top:16px; }
+  .q:first-child { border-top:none; padding-top:0; margin-top:0; }
+  .tag { display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#4338ca; margin-right:6px; }
+  .label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:12px 0 4px; }
+  .stem, .explain, .opt { white-space:pre-wrap; line-height:1.6; word-break:break-word; }
+  .opt { padding:3px 0; }
+  .ans { color:#15803d; font-weight:600; }
+  .mp { margin:2px 0; }
+  pre { background:#0f172a; color:#e2e8f0; padding:12px 14px; border-radius:8px; overflow-x:auto; font-size:13px; line-height:1.5; }
+  code { font-family:ui-monospace,Consolas,"Courier New",monospace; }
+  .err { color:#b91c1c; background:#fee2e2; padding:10px 12px; border-radius:8px; white-space:pre-wrap; }
+  #spin { color:var(--muted); font-size:14px; }
+  .copy { background:transparent; color:var(--accent); border:1px solid var(--accent); padding:4px 10px; font-size:12px; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AP CSA 出题助手</h1>
+  <div class="sub">RAG 检索真题 + DeepSeek 生成 + 规则护栏</div>
+
+  <div class="card">
+    <div class="form">
+      <div class="field"><label>考点</label>
+        <select id="kp">
+          <option>Array</option><option>ArrayList</option><option>2D Array</option>
+          <option>Inheritance</option><option>Recursion</option><option>Writing Classes</option>
+          <option>Iteration</option><option>Boolean Expressions and if Statements</option>
+          <option>Using Objects</option><option>Primitive Types</option>
+        </select>
+      </div>
+      <div class="field"><label>题型</label>
+        <select id="type"><option value="选择题">选择题</option><option value="编程题">编程题</option></select>
+      </div>
+      <div class="field"><label>难度</label>
+        <select id="diff"><option>基础</option><option>中等</option><option>较难</option></select>
+      </div>
+      <button id="gen">生成题目</button>
+      <span id="spin" style="display:none">生成中…</span>
+    </div>
+  </div>
+
+  <div id="result"></div>
+
+  <div class="card">
+    <h2 style="margin:0 0 4px;font-size:16px">上传资料入库</h2>
+    <div class="sub" style="margin-bottom:12px">上传 PDF / docx，自动解析成题目（LLM 补全答案与解析）</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="file" id="file" accept=".pdf,.docx" style="font-size:14px">
+      <button id="upload">上传并解析</button>
+      <span id="upload-spin" style="display:none;color:#6b7280;font-size:14px">解析中…</span>
+    </div>
+    <div id="upload-result" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 4px;font-size:16px">数据管理</h2>
+    <div class="sub" style="margin-bottom:12px">管理用户上传的题目（官方题不可删）</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button id="load-user">查看用户题</button>
+      <button id="reset" style="background:#b91c1c">Reset 到官方版</button>
+      <span id="user-count" style="color:#6b7280;font-size:14px"></span>
+    </div>
+    <div id="user-list" style="margin-top:12px"></div>
+  </div>
+</div>
+<script>
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt = s => esc(s).replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => `<pre><code>${code}</code></pre>`);
+
+function cardHTML(q){
+  const opts = (q.options && q.options.length)
+    ? `<div class="label">选项</div><div>${q.options.map((o,j)=>`<div class="opt"><b>${'ABCDE'[j]}.</b> ${fmt(o)}</div>`).join('')}</div>` : '';
+  const mps = (q.marking_points && q.marking_points.length)
+    ? `<div class="label">评分要点</div>${q.marking_points.map(m=>`<div class="mp">• ${esc(m)}</div>`).join('')}` : '';
+  return `<div class="card q">
+    <div><span class="tag">${esc(q.type)}</span><span class="tag">${esc(q.difficulty)}</span><span class="tag">${esc(q.knowledge_point)}</span></div>
+    <div class="label">题干</div><div class="stem">${fmt(q.stem)}</div>
+    ${opts}
+    <div class="label">答案</div><div class="ans">${esc(q.answer)}</div>
+    <div class="label">分步解析</div><div class="explain">${fmt(q.explanation)}</div>
+    ${mps}
+    <button class="copy" onclick="copyMd(this)">复制 Markdown</button>
+  </div>`;
+}
+
+function copyMd(btn){
+  const q = btn.closest('.q');
+  navigator.clipboard.writeText(q.innerText.replace('复制 Markdown','').trim())
+    .then(()=>{ btn.textContent='已复制'; setTimeout(()=>btn.textContent='复制 Markdown',1200); });
+}
+
+async function gen(){
+  const btn=document.getElementById('gen'), spin=document.getElementById('spin'), res=document.getElementById('result');
+  btn.disabled=true; spin.style.display='inline'; res.innerHTML='';
+  const body={ subject:'AP Computer Science A',
+    knowledge_point:document.getElementById('kp').value,
+    question_type:document.getElementById('type').value,
+    difficulty:document.getElementById('diff').value, count:1 };
+  try{
+    const r=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error(await r.text());
+    const data=await r.json();
+    res.innerHTML = data.questions.map(cardHTML).join('');
+  }catch(e){
+    res.innerHTML=`<div class="card err">${esc(String(e))}</div>`;
+  }finally{
+    btn.disabled=false; spin.style.display='none';
+  }
+}
+document.getElementById('gen').addEventListener('click', gen);
+
+// —— 上传资料 ——
+async function doUpload(){
+  const file=document.getElementById('file').files[0];
+  const spin=document.getElementById('upload-spin'), res=document.getElementById('upload-result');
+  if(!file){ res.innerHTML='<div class="err">请先选择文件</div>'; return; }
+  const fd=new FormData(); fd.append('file', file);
+  document.getElementById('upload').disabled=true; spin.style.display='inline'; res.innerHTML='';
+  try{
+    const r=await fetch('/upload',{method:'POST',body:fd});
+    if(!r.ok) throw new Error(await r.text());
+    const data=await r.json();
+    res.innerHTML=`<div style="color:#15803d">解析出 ${data.parsed} 题，新增 ${data.added} 道，跳过重复 ${data.skipped} 道</div>`;
+  }catch(e){
+    res.innerHTML=`<div class="err">${esc(String(e))}</div>`;
+  }finally{
+    document.getElementById('upload').disabled=false; spin.style.display='none';
+  }
+}
+document.getElementById('upload').addEventListener('click', doUpload);
+
+// —— 数据管理 ——
+async function loadUser(){
+  const res=document.getElementById('user-list'), cnt=document.getElementById('user-count');
+  try{
+    const r=await fetch('/questions?source=user');
+    if(!r.ok) throw new Error(await r.text());
+    const data=await r.json();
+    cnt.textContent=`共 ${data.count} 道用户题`;
+    if(!data.count){ res.innerHTML=''; return; }
+    res.innerHTML=data.questions.map(q=>`
+      <div class="q" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div><span class="tag">${esc(q.type)}</span><span class="tag">${esc(q.difficulty)}</span><span class="tag">${esc(q.knowledge_point)}</span></div>
+          <div class="stem" style="margin-top:6px">${esc(q.stem).slice(0,300)}${q.stem.length>300?'…':''}</div>
+        </div>
+        <button class="copy" onclick="delUser('${q.id}')">删除</button>
+      </div>`).join('');
+  }catch(e){
+    res.innerHTML=`<div class="err">${esc(String(e))}</div>`;
+  }
+}
+document.getElementById('load-user').addEventListener('click', loadUser);
+
+async function delUser(id){
+  if(!confirm('确定删除这道用户题？')) return;
+  try{
+    const r=await fetch('/questions/'+encodeURIComponent(id),{method:'DELETE'});
+    if(!r.ok) throw new Error(await r.text());
+    loadUser();
+  }catch(e){ alert(String(e)); }
+}
+
+document.getElementById('reset').addEventListener('click', async ()=>{
+  if(!confirm('确定清空所有用户上传的题，回到官方基线？此操作不可撤销。')) return;
+  try{
+    const r=await fetch('/reset',{method:'POST'});
+    if(!r.ok) throw new Error(await r.text());
+    const data=await r.json();
+    alert(`已重置：删除 ${data.removed} 道用户题，剩余 ${data.remaining} 道（官方）`);
+    loadUser();
+  }catch(e){ alert(String(e)); }
+});
+</script>
+</body>
+</html>
