@@ -85,7 +85,10 @@
     <div class="sub" style="margin-bottom:12px">跨多次生成攒题，审核后导出成卷</div>
     <div id="basket-count" style="color:#6b7280;font-size:14px;margin-bottom:8px"></div>
     <div id="basket-list"></div>
-    <button id="basket-clear" style="background:#b91c1c;margin-top:12px">清空篮子</button>
+    <div style="margin-top:12px;display:flex;gap:10px">
+      <button id="basket-export">导出 Word</button>
+      <button id="basket-clear" style="background:#b91c1c">清空篮子</button>
+    </div>
   </div>
 
   <div class="card">
@@ -344,6 +347,22 @@ document.getElementById('basket-clear').addEventListener('click', ()=>{
   saveBasket();
   renderBasket();
 });
+
+async function exportBasket(){
+  if(!basket.length){ alert('篮子为空，先攒几道题'); return; }
+  try{
+    const r = await fetch('/export', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({questions: basket})});
+    if(!r.ok) throw new Error(await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'paper.docx';
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(e){ alert(String(e)); }
+}
+document.getElementById('basket-export').addEventListener('click', exportBasket);
 renderBasket();
 </script>
 </body>

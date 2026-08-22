@@ -20,12 +20,13 @@ from contextlib import asynccontextmanager
 import pymupdf
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 import rag
+from export import build_paper_docx
 from graph import generate, generate_paper
 from llm import parse_questions
-from schemas import GenerateRequest, GenerateResponse, PaperRequest, PaperResponse
+from schemas import ExportRequest, GenerateRequest, GenerateResponse, PaperRequest, PaperResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 QUESTIONS_PATH = os.path.join(BASE_DIR, "data", "questions.json")
@@ -160,6 +161,17 @@ def reset() -> dict:
     _save_questions(official)
     rag.reset_user()
     return {"removed": removed, "remaining": len(official)}
+
+
+@app.post("/export")
+def export_questions(req: ExportRequest) -> Response:
+    """导出成卷：把题目列表渲染成 Word（.docx），题目卷 + 答案卷分页。"""
+    docx = build_paper_docx(req.questions)
+    return Response(
+        content=docx,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=paper.docx"},
+    )
 
 
 @app.get("/health")
