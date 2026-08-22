@@ -81,6 +81,14 @@
   <div id="result"></div>
 
   <div class="card">
+    <h2 style="margin:0 0 4px;font-size:16px">出题篮</h2>
+    <div class="sub" style="margin-bottom:12px">跨多次生成攒题，审核后导出成卷</div>
+    <div id="basket-count" style="color:#6b7280;font-size:14px;margin-bottom:8px"></div>
+    <div id="basket-list"></div>
+    <button id="basket-clear" style="background:#b91c1c;margin-top:12px">清空篮子</button>
+  </div>
+
+  <div class="card">
     <h2 style="margin:0 0 4px;font-size:16px">上传资料入库</h2>
     <div class="sub" style="margin-bottom:12px">上传 PDF / docx，自动解析成题目（LLM 补全答案与解析）</div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -106,7 +114,7 @@
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmt = s => esc(s).replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => `<pre><code>${code}</code></pre>`);
 
-function cardHTML(q){
+function cardHTML(q, idx){
   const opts = (q.options && q.options.length)
     ? `<div class="label">选项</div><div>${q.options.map((o,j)=>`<div class="opt"><b>${'ABCDE'[j]}.</b> ${fmt(o)}</div>`).join('')}</div>` : '';
   const mps = (q.marking_points && q.marking_points.length)
@@ -118,7 +126,10 @@ function cardHTML(q){
     <div class="label">答案</div><div class="ans">${esc(q.answer)}</div>
     <div class="label">分步解析</div><div class="explain">${fmt(q.explanation)}</div>
     ${mps}
-    <button class="copy" onclick="copyMd(this)">复制 Markdown</button>
+    <div style="margin-top:8px">
+      <button class="copy" onclick="addToBasket(${idx})">加入篮子</button>
+      <button class="copy" onclick="copyMd(this)">复制 Markdown</button>
+    </div>
   </div>`;
 }
 
@@ -139,7 +150,8 @@ async function gen(){
     const r=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(!r.ok) throw new Error(await r.text());
     const data=await r.json();
-    res.innerHTML = data.questions.map(cardHTML).join('');
+    lastQuestions = data.questions;
+    res.innerHTML = data.questions.map((q, i)=>cardHTML(q, i)).join('');
   }catch(e){
     res.innerHTML=`<div class="card err">${esc(String(e))}</div>`;
   }finally{
@@ -176,7 +188,8 @@ async function assemble(specs, btnId, spinId){
     const r=await fetch('/assemble_paper',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({specs})});
     if(!r.ok) throw new Error(await r.text());
     const data=await r.json();
-    res.innerHTML=`<div class="sub" style="margin:12px 0 4px">共生成 ${data.questions.length} 题</div>`+data.questions.map(cardHTML).join('');
+    lastQuestions = data.questions;
+    res.innerHTML=`<div class="sub" style="margin:12px 0 4px">共生成 ${data.questions.length} 题</div>`+data.questions.map((q, i)=>cardHTML(q, i)).join('');
   }catch(e){
     res.innerHTML=`<div class="card err">${esc(String(e))}</div>`;
   }finally{
@@ -291,6 +304,47 @@ document.getElementById('reset').addEventListener('click', async ()=>{
     loadUser();
   }catch(e){ alert(String(e)); }
 });
+
+// —— 出题篮 ——
+let lastQuestions = [];
+let basket = [];
+try { basket = JSON.parse(localStorage.getItem('basket') || '[]'); } catch(e){ basket = []; }
+function saveBasket(){ localStorage.setItem('basket', JSON.stringify(basket)); }
+
+function addToBasket(idx){
+  const q = lastQuestions[idx];
+  if(!q) return;
+  basket.push(q);
+  saveBasket();
+  renderBasket();
+}
+function removeFromBasket(idx){
+  basket.splice(idx, 1);
+  saveBasket();
+  renderBasket();
+}
+function renderBasket(){
+  const cnt = document.getElementById('basket-count');
+  const list = document.getElementById('basket-list');
+  const mcq = basket.filter(q=>q.type==='选择题').length;
+  const frq = basket.filter(q=>q.type==='编程题').length;
+  cnt.textContent = basket.length ? `共 ${basket.length} 题（选择题 ${mcq} / 编程题 ${frq}）` : '';
+  list.innerHTML = basket.map((q, i)=>`
+    <div class="q" style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div><span class="tag">${esc(q.type)}</span><span class="tag">${esc(q.difficulty)}</span><span class="tag">${esc(q.knowledge_point)}</span></div>
+        <div class="stem" style="margin-top:4px">${esc(q.stem).slice(0,120)}${q.stem.length>120?'…':''}</div>
+      </div>
+      <button class="copy" onclick="removeFromBasket(${i})">移除</button>
+    </div>`).join('') || '<div class="sub" style="margin-bottom:0">篮子为空，生成题目后点「加入篮子」攒题</div>';
+}
+document.getElementById('basket-clear').addEventListener('click', ()=>{
+  if(!confirm('确定清空出题篮？')) return;
+  basket = [];
+  saveBasket();
+  renderBasket();
+});
+renderBasket();
 </script>
 </body>
 </html>
