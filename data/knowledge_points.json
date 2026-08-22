@@ -5,7 +5,7 @@
   "Iteration": ["for loop", "while loop", "nested loops"],
   "Writing Classes": ["constructors", "encapsulation", "method definition", "static members"],
   "Array": ["array declaration", "array traversal", "array bounds"],
-  "ArrayList": ["add method", "get method", "set method", "remove method", "ArrayList traversal", "ArrayList bounds", "ArrayList wrappers"],
+  "ArrayList": ["add method", "get method", "set method", "remove method", "ArrayList traversal", "ArrayList bounds", "ArrayList wrappers", "sorting"],
   "2D Array": ["2D traversal", "2D row-column"],
   "Inheritance": ["extends inheritance", "super keyword", "method overriding", "polymorphism"],
   "Recursion": ["base case", "recursive calls"]
