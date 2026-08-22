@@ -20,7 +20,7 @@ from contextlib import asynccontextmanager
 import pymupdf
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 import rag
 from export import build_paper_docx
@@ -33,6 +33,9 @@ QUESTIONS_PATH = os.path.join(BASE_DIR, "data", "questions.json")
 
 # 上传文档文本上限（超过提示拆分，避免撑爆 LLM context）
 MAX_TEXT_CHARS = 15000
+
+# 访问令牌：公网穿透时非空则强制鉴权（本地开发留空则跳过）
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "").strip()
 
 
 @asynccontextmanager
@@ -50,6 +53,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def auth_guard(request, call_next):
+    """公网穿透时的简易鉴权：除首页/健康检查外，其余请求需带正确 token（header 或 query）。"""
+    if ACCESS_TOKEN and request.url.path not in ("/", "/health"):
+        token = request.headers.get("x-access-token") or request.query_params.get("token")
+        if token != ACCESS_TOKEN:
+            return JSONResponse(status_code=401, content={"detail": "缺少或错误的访问令牌"})
+    return await call_next(request)
 
 
 def _extract_text(filename: str, content: bytes) -> str:

@@ -114,6 +114,20 @@
   </div>
 </div>
 <script>
+// 鉴权：从 URL ?token=xxx 读访问令牌，包装 fetch 自动带 header（公网穿透用）
+(function(){
+  const t = new URLSearchParams(location.search).get('token');
+  if(t){ localStorage.setItem('access_token', t); history.replaceState(null,'',location.pathname); }
+  const token = localStorage.getItem('access_token') || '';
+  const origFetch = window.fetch;
+  window.fetch = function(url, opts={}){
+    if(token){
+      opts = Object.assign({}, opts);
+      opts.headers = Object.assign({}, opts.headers, {'X-Access-Token': token});
+    }
+    return origFetch(url, opts);
+  };
+})();
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const fmt = s => esc(s).replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => `<pre><code>${code}</code></pre>`);
 
