@@ -3,6 +3,7 @@
 把 rag / llm / guardrails 串成一张图：
   START → retrieve → generate → validate → (有 error 且未超次数 ? generate : END)
 """
+import re
 from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -13,6 +14,32 @@ import rag
 from schemas import GenerateRequest, GenerateResponse, PaperRequest, PaperResponse
 
 MAX_RETRIES = 2
+
+# 选项标记：行首的 A. / (A) / A)
+_OPT_MARK = re.compile(r"\n\s*[\(（]?([A-E])[\.\)）]\s*")
+_OPT_PREFIX = re.compile(r"^[\(（]?[A-E][\.\)）]\s*")
+
+
+def _clean_questions(questions):
+    """清洗生成的选择题：options 去字母前缀 + stem 剥离选项块（防止选项出现两遍）。
+
+    LLM 常把完整题目（含选项）写进 stem，又单独填 options 数组，导致选项出现两遍。
+    这里用确定性的后处理剥离 stem 末尾的选项块，不依赖 prompt 自觉。
+    """
+    for q in questions:
+        if q.type != "选择题":
+            continue
+        # options 去字母前缀（兜底）
+        q.options = [_OPT_PREFIX.sub("", o).strip() for o in q.options]
+        # stem 剥离选项块：找行首 A 标记，且后面紧跟 B/C/D/E 连续标记，则截断
+        marks = list(_OPT_MARK.finditer(q.stem))
+        for i, m in enumerate(marks):
+            if m.group(1) == "A":
+                seq = [mm.group(1) for mm in marks[i + 1:i + 5]]
+                if seq[:4] == ["B", "C", "D", "E"]:
+                    q.stem = q.stem[:m.start()].rstrip()
+                    break
+    return questions
 
 
 class State(TypedDict, total=False):
@@ -90,7 +117,7 @@ _compiled = _graph.compile()
 def generate(request: GenerateRequest) -> GenerateResponse:
     """出题入口：跑完 retrieve → generate → validate（含自动重试），返回题目。"""
     result = _compiled.invoke({"request": request, "retries": 0})
-    return GenerateResponse(questions=result["questions"])
+    return GenerateResponse(questions=_clean_questions(result["questions"]))
 
 
 def _paper_messages(knowledge_point: str, question_type: str, difficulty: str, count: int,
@@ -145,4 +172,4 @@ def generate_paper(request: PaperRequest) -> PaperResponse:
             resp = llm.generate_questions(messages)
             all_q.extend(resp.questions)
             remaining -= batch
-    return PaperResponse(questions=all_q)
+    return PaperResponse(questions=_clean_questions(all_q))
