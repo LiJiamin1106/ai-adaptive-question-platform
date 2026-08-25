@@ -48,7 +48,7 @@ if exist "%~dp0natapp.exe" (
 )
 
 if exist natapp.log del natapp.log
-start "AP CSA Tunnel" cmd /k "%NATAPP_CMD% -authtoken=%NATAPP_AUTHTOKEN% > natapp.log 2>&1"
+start "AP CSA Tunnel" cmd /k "%NATAPP_CMD% -log=stdout -authtoken=%NATAPP_AUTHTOKEN% > natapp.log 2>&1"
 
 echo Waiting for public URL...
 set /a TUNNEL_TRIES=0
@@ -56,7 +56,7 @@ set /a TUNNEL_TRIES=0
 timeout /t 2 /nobreak >nul
 set /a TUNNEL_TRIES+=1
 if not exist natapp.log goto tunnel_retry
-findstr /c:"Forwarding" natapp.log >nul 2>&1
+findstr /c:"Tunnel established" natapp.log >nul 2>&1
 if not errorlevel 1 goto tunnel_ready
 :tunnel_retry
 if %TUNNEL_TRIES% geq 30 goto tunnel_timeout

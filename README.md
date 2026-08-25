@@ -56,13 +56,13 @@ uv run uvicorn main:app --reload          # 启动服务
 ```bash
 # 手动方式
 uv run uvicorn main:app --port 8000                     # 1. 起服务
-natapp -authtoken=你的authtoken > natapp.log 2>&1        # 2. 起隧道
+natapp -log=stdout -authtoken=你的authtoken > natapp.log 2>&1        # 2. 起隧道
 uv run python tunnel_url.py                              # 3. 提取带 token 的分享链接
 ```
 
 停止：双击 `stop.bat`（停服务 + 停隧道）。
 
-**鉴权**：`.env` 里的 `ACCESS_TOKEN` 非空时，除首页、健康检查、知识点清单、favicon 等只读/静态路径外，其余接口都需带 token（header `X-Access-Token` 或 query `?token=`）。`start.bat` 打开本地页面时会自动读取 `.env` 的 token 拼进 URL，前端存入浏览器后每次请求自动携带，本地开发无需手动切换配置。分享链接形如 `https://你的域名.natappfree.cc/?token=你的token`，不知道 token 的人无法调用出题接口，避免刷 DeepSeek 额度。
+**鉴权**：`.env` 里的 `ACCESS_TOKEN` 非空时，除首页、健康检查、知识点清单、favicon 等只读/静态路径外，其余接口都需带 token（header `X-Access-Token` 或 query `?token=`）。`start.bat` 打开本地页面时会自动读取 `.env` 的 token 拼进 URL，前端存入浏览器后每次请求自动携带，本地开发无需手动切换配置。分享链接形如 `http://你的域名.natappfree.cc/?token=你的token`（免费隧道是 http，不做 TLS），不知道 token 的人无法调用出题接口，避免刷 DeepSeek 额度。
 
 > 注意：natapp 的域名在创建隧道时固定（免费版为 `xxx.natappfree.cc`），重启不变，比 cloudflared quick tunnel 的随机临时 URL 更稳定；免费版带宽较低，商用建议付费固定域名。
 >

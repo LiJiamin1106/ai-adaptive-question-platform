@@ -13,8 +13,8 @@ def main():
     if os.path.exists(log_path):
         with open(log_path, encoding="utf-8", errors="ignore") as f:
             text = f.read()
-        # natapp 连接成功后会打印形如 "Forwarding    http://xxx.natappfree.cc -> 127.0.0.1:8000"
-        m = re.search(r"Forwarding\s+(https?://\S+)", text)
+        # natapp 连接成功后会打印形如 "Tunnel established at http://xxx.natappfree.cc"
+        m = re.search(r"Tunnel established at\s+(https?://\S+)", text)
         url = m.group(1) if m else ""
 
     token = ""
