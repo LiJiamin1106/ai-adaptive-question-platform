@@ -37,6 +37,9 @@ MAX_TEXT_CHARS = 15000
 # 访问令牌：公网穿透时非空则强制鉴权（本地开发留空则跳过）
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "").strip()
 
+# 免鉴权路径：只读/静态、不烧 API key 也不含敏感数据（首页、健康检查、知识点清单、favicon）
+PUBLIC_PATHS = {"/", "/health", "/knowledge_points", "/favicon.ico"}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -58,7 +61,7 @@ app.add_middleware(
 @app.middleware("http")
 async def auth_guard(request, call_next):
     """公网穿透时的简易鉴权：除首页/健康检查外，其余请求需带正确 token（header 或 query）。"""
-    if ACCESS_TOKEN and request.url.path not in ("/", "/health"):
+    if ACCESS_TOKEN and request.url.path not in PUBLIC_PATHS:
         token = request.headers.get("x-access-token") or request.query_params.get("token")
         if token != ACCESS_TOKEN:
             return JSONResponse(status_code=401, content={"detail": "缺少或错误的访问令牌"})

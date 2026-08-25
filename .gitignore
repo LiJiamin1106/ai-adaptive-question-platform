@@ -10,7 +10,10 @@ __pycache__/
 # 本地索引与数据（可重建，不入版本库）
 qdrant_data/
 
-# 内网穿透（二进制 + 运行时日志）
+# 内网穿透（二进制 + 运行时日志 + 一键安装生成的辅助脚本）
+natapp.exe
+natapp.log
+run_natapp.bat
 cloudflared.exe
 cloudflared.log
 

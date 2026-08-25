@@ -1,4 +1,4 @@
-"""从 cloudflared.log 提取公网 URL，拼上 access token 打印完整分享链接。
+"""从 natapp.log 提取公网 URL，拼上 access token 打印完整分享链接。
 
 用法：uv run python tunnel_url.py
 """
@@ -8,13 +8,14 @@ import re
 
 def main():
     base = os.path.dirname(os.path.abspath(__file__))
-    log_path = os.path.join(base, "cloudflared.log")
+    log_path = os.path.join(base, "natapp.log")
     url = ""
     if os.path.exists(log_path):
         with open(log_path, encoding="utf-8", errors="ignore") as f:
             text = f.read()
-        m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", text)
-        url = m.group(0) if m else ""
+        # natapp 连接成功后会打印形如 "Forwarding    http://xxx.natappfree.cc -> 127.0.0.1:8000"
+        m = re.search(r"Forwarding\s+(https?://\S+)", text)
+        url = m.group(1) if m else ""
 
     token = ""
     env_path = os.path.join(base, ".env")
